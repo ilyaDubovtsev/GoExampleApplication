@@ -3,17 +3,35 @@ package main
 import (
 	"bufio"
 	"fmt"
+	"io/ioutil"
+	"log"
+	"net/http"
 	"os"
+	"strings"
 	"sync"
 )
 
 type urlWork struct{ url string }
 
-func getCountOfGo(url string) int {
-	return 5
+func makeRequest(url string) string {
+	resp, err := http.Get(url)
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	return string(body)
 }
 
-//echo -e 'https://golang.org\nhttps://golang.org' | go run main.go
+func getCountOfGo(text string) int {
+	return strings.Count(text, "Go")
+}
+
+//echo -e 'https://golang.org\nhttps://golang.org\nhttps://golang.org\nhttps://golang.org\nhttps://golang.org\nhttps://golang.org' | go run main.go
 func main() {
 	works := make(chan urlWork)
 	scanner := bufio.NewScanner(os.Stdin)
@@ -24,7 +42,9 @@ func main() {
 	for i := 0; i < maxConcurrency; i++ {
 		go func(j int) {
 			for work := range works {
-				fmt.Println("Count for", work.url, ":", getCountOfGo(work.url), "goroutine", j)
+				requestBody := makeRequest(work.url)
+				countOfGo := getCountOfGo(requestBody)
+				fmt.Println("Count for", work.url, ":", countOfGo, "goroutine", j)
 			}
 			wg.Done()
 		}(i)
