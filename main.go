@@ -37,6 +37,8 @@ func main() {
 	scanner := bufio.NewScanner(os.Stdin)
 	maxConcurrency := 5
 	wg := new(sync.WaitGroup)
+	mutex := new(sync.Mutex)
+	counter := 0
 
 	wg.Add(maxConcurrency)
 	for i := 0; i < maxConcurrency; i++ {
@@ -44,11 +46,15 @@ func main() {
 			for work := range works {
 				requestBody := makeRequest(work.url)
 				countOfGo := getCountOfGo(requestBody)
+
+				mutex.Lock()
+				counter += countOfGo
+				mutex.Unlock()
+
 				fmt.Println("Count for", work.url, ":", countOfGo, "goroutine", j)
 			}
 			wg.Done()
 		}(i)
-
 	}
 
 	for scanner.Scan() {
@@ -59,4 +65,6 @@ func main() {
 
 	close(works)
 	wg.Wait()
+
+	fmt.Println("Total:", counter)
 }
