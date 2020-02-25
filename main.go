@@ -10,7 +10,7 @@ import (
 	"sync"
 )
 
-type urlWork struct{ url string }
+type worker struct{ id int }
 
 func makeRequest(url string) string {
 	resp, err := http.Get(url)
@@ -32,38 +32,39 @@ func getCountOfGo(text string) int {
 
 //echo -e 'https://golang.org\nhttps://golang.org\nhttps://golang.org\nhttps://golang.org\nhttps://golang.org\nhttps://golang.org' | go run main.go
 func main() {
-	works := make(chan urlWork)
 	scanner := bufio.NewScanner(os.Stdin)
 	maxConcurrency := 5
+	workers := make(chan worker, maxConcurrency)
 	wg := new(sync.WaitGroup)
 	mutex := new(sync.Mutex)
 	counter := 0
 
-	wg.Add(maxConcurrency)
 	for i := 0; i < maxConcurrency; i++ {
-		go func(j int) {
-			for work := range works {
-				requestBody := makeRequest(work.url)
-				countOfGo := getCountOfGo(requestBody)
-
-				mutex.Lock()
-				counter += countOfGo
-				mutex.Unlock()
-
-				fmt.Println("Count for", work.url, ":", countOfGo, "goroutine", j)
-			}
-			wg.Done()
-		}(i)
+		workers <- worker{i}
 	}
 
 	for scanner.Scan() {
 		scannedURL := scanner.Text()
-		//fmt.Println("read ", scannedURL)
-		works <- urlWork{scannedURL}
+		wg.Add(1)
+		go func(url string) {
+			currentWorker := <-workers
+
+			requestBody := makeRequest(url)
+			countOfGo := getCountOfGo(requestBody)
+
+			mutex.Lock()
+			counter += countOfGo
+			mutex.Unlock()
+
+			fmt.Println("Count for", url, ":", countOfGo, "goroutine", currentWorker.id)
+
+			workers <- currentWorker
+			wg.Done()
+		}(scannedURL)
 	}
 
-	close(works)
 	wg.Wait()
+	close(workers)
 
 	fmt.Println("Total:", counter)
 }
