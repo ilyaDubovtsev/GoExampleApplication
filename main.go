@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"os"
 	"strings"
@@ -16,12 +15,12 @@ type urlWork struct{ url string }
 func makeRequest(url string) string {
 	resp, err := http.Get(url)
 	if err != nil {
-		log.Fatalln(err)
+		return ""
 	}
 
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		log.Fatalln(err)
+		return ""
 	}
 
 	return string(body)
@@ -59,7 +58,7 @@ func main() {
 
 	for scanner.Scan() {
 		scannedURL := scanner.Text()
-		fmt.Println("read ", scannedURL)
+		//fmt.Println("read ", scannedURL)
 		works <- urlWork{scannedURL}
 	}
 
